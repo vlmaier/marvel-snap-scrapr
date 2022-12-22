@@ -36,7 +36,7 @@ def scrap():
             'source': link['data-source']
         }
         characters.append(character)
-        print(character)
+        # print(character)
 
     image_urls = []
     for character in characters:
@@ -50,7 +50,7 @@ def scrap():
 def capitalize(text):
     punc_filter = re.compile('([.!?;:]\s*)')
     split_with_punctuation = punc_filter.split(text)
-    for i,j in enumerate(split_with_punctuation):
+    for i, j in enumerate(split_with_punctuation):
         if len(j) > 1:
             split_with_punctuation[i] = j[0].upper() + j[1:]
     text = ''.join(split_with_punctuation)
@@ -76,19 +76,39 @@ def download_images(urls, dir_name='marvel-snap-cards'):
 def create_cards(cards):
     url = 'http://localhost:8080/v1/cards'
     for card in cards:
-        if card['status'] != 'released':
-            continue
-        body = {
-            'name': card['name'],
-            'cost': card['cost'],
-            'power': card['power'],
-            'ability': card['ability'],
-            'imageUrl': card['url']
-        }
-        requests.post(url, json=body)
-        print(card['name'] + ' created.')
+        if card['status'] == 'released':
+            body = {
+                'name': parse_name(card['name']),
+                'cost': card['cost'],
+                'power': card['power'],
+                'ability': parse_ability(card['ability']),
+                'imageUrl': card['url']
+            }
+            requests.post(url, json=body)
+            print(card['name'] + ' created.')
+
+
+def parse_name(name):
+    if name == 'Ant Man':
+        return 'Ant-Man'
+    elif name == 'Jane Foster Mighty Thor':
+        return 'Jane Foster The Mighty Thor'
+    elif name == 'Miles Morales':
+        return 'Miles Morales: Spider-Man'
+    elif name == 'Super-Skrull':
+        return 'Super Skrull'
+    return name
+
+
+def parse_ability(ability):
+    bold_candidates = ["On Reveal", "Ongoing", "Widow's Bite", "Rock", "Rocks", "Doombot", "Squirrel", "Demon", "Drone",
+                       "Mjolnir", "Tiger", "Limbo"]
+    for candidate in bold_candidates:
+        if ability.lower().__contains__(candidate.lower()):
+            ability = re.sub(candidate.lower(), "<span class='fw-bold'>" + candidate + "</span>", ability, flags=re.IGNORECASE)
+    return ability
 
 
 if __name__ == '__main__':
     characters = scrap()
-    # create_cards(characters)
+    create_cards(characters)
