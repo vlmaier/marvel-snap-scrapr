@@ -81,7 +81,7 @@ def create_cards(cards):
                 'name': parse_name(card['name']),
                 'cost': card['cost'],
                 'power': card['power'],
-                'ability': parse_ability(card['ability']),
+                'ability': parse_ability(card['name'], card['ability']),
                 'imageUrl': card['url']
             }
             requests.post(url, json=body)
@@ -100,7 +100,9 @@ def parse_name(name):
     return name
 
 
-def parse_ability(ability):
+def parse_ability(name, ability):
+    if name == 'The Collector':
+        ability = 'When a card enters your hand from anywhere (except your deck), +1 Power.'
     bold_candidates = ["On Reveal", "Ongoing", "Widow's Bite", "Rock", "Rocks", "Doombot", "Squirrel", "Demon", "Drone",
                        "Mjolnir", "Tiger", "Limbo"]
     for candidate in bold_candidates:
