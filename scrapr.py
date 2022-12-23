@@ -101,13 +101,18 @@ def parse_name(name):
 
 
 def parse_ability(name, ability):
+    if ability == '':
+        ability = 'No ability'
     if name == 'The Collector':
-        ability = 'When a card enters your hand from anywhere (except your deck), +1 Power.'
+        ability = 'When a card enters your hand from anywhere (except your deck), +1 power.'
     bold_candidates = ["On Reveal", "Ongoing", "Widow's Bite", "Rock", "Rocks", "Doombot", "Squirrel", "Demon", "Drone",
-                       "Mjolnir", "Tiger", "Limbo"]
+                       "Mjolnir", "Tiger", "Limbo", "No ability"]
     for candidate in bold_candidates:
         if ability.lower().__contains__(candidate.lower()):
             ability = re.sub(candidate.lower(), "<span class='fw-bold'>" + candidate + "</span>", ability, flags=re.IGNORECASE)
+    for i in ["1", "2", "3", "4", "5", "6", "7", "8", "9"]:
+        ability = re.sub("[+][" + i + "]", "<span class='fw-bold' style='color: green;'>+" + i + "</span>", ability)
+        ability = re.sub("[-][" + i + "]", "<span class='fw-bold' style='color: red;'>-" + i + "</span>", ability)
     return ability
 
 
