@@ -89,6 +89,7 @@ def create_cards(cards):
 
 
 def parse_name(name):
+    # character name manual fix
     if name == 'Ant Man':
         return 'Ant-Man'
     elif name == 'Jane Foster Mighty Thor':
@@ -101,17 +102,23 @@ def parse_name(name):
 
 
 def parse_ability(name, ability):
+    # provide 'No ability' instead of empty string
     if ability == '':
         ability = 'No ability'
+    # The Collector ability manual fix
     if name == 'The Collector':
         ability = 'When a card enters your hand from anywhere (except your deck), +1 power.'
+    # all following words should be shown in bold
     bold_candidates = ["On Reveal", "Ongoing", "Widow's Bite", "Rock", "Rocks", "Doombot", "Squirrel", "Demon", "Drone",
                        "Mjolnir", "Tiger", "Limbo", "No ability"]
     for candidate in bold_candidates:
         if ability.lower().__contains__(candidate.lower()):
-            ability = re.sub(candidate.lower(), "<span class='fw-bold'>" + candidate + "</span>", ability, flags=re.IGNORECASE)
+            ability = re.sub(candidate.lower(), "<span class='fw-bold'>" + candidate + "</span>", ability,
+                             flags=re.IGNORECASE)
     for i in ["1", "2", "3", "4", "5", "6", "7", "8", "9"]:
+        # +[1-9] should be shown in bold and green color
         ability = re.sub("[+][" + i + "]", "<span class='fw-bold' style='color: green;'>+" + i + "</span>", ability)
+        # -[1-9] should be shown in bold and red color
         ability = re.sub("[-][" + i + "]", "<span class='fw-bold' style='color: red;'>-" + i + "</span>", ability)
     return ability
 
