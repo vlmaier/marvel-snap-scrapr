@@ -82,10 +82,12 @@ def create_cards(cards):
                 'cost': card['cost'],
                 'power': card['power'],
                 'ability': parse_ability(card['name'], card['ability']),
+                'series': parse_source(card['source']),
                 'imageUrl': card['url']
             }
             requests.post(url, json=body)
-            print(card['name'] + ' created.')
+            print(body)
+            # print(card['name'] + ' created.')
 
 
 def parse_name(name):
@@ -121,6 +123,25 @@ def parse_ability(name, ability):
         # -[1-9] should be shown in bold and red color
         ability = re.sub("[-][" + i + "]", "<span class='fw-bold' style='color: red;'>-" + i + "</span>", ability)
     return ability
+
+
+def parse_source(source):
+    if source.__contains__('Collection Level 1-14') or source.__contains__('Starter Card') or source.__contains__('Recruit Season'):
+        return 'Starter'
+    elif source.__contains__('Pool 1'):
+        return 'Series 1'
+    elif source.__contains__('Pool 2'):
+        return 'Series 2'
+    elif source.__contains__('Pool 3'):
+        return 'Series 3'
+    elif source.__contains__('Pool 4'):
+        return 'Series 4'
+    elif source.__contains__('Pool 5'):
+        return 'Series 5'
+    elif source.__contains__('Season Pass'):
+        return 'Season Pass'
+    else:
+        return ''
 
 
 if __name__ == '__main__':
