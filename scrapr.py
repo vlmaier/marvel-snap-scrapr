@@ -146,4 +146,4 @@ def parse_source(source):
 
 if __name__ == '__main__':
     characters = scrap()
-    create_cards(characters)
+    # create_cards(characters)
