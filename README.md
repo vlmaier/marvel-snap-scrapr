@@ -1,3 +1,5 @@
+![](https://github.com/vlmaier/marvel-snap-scrapr/actions/workflows/build.yml/badge.svg)
+
 # Marvel SNAP Scrapr
 
 Scraper for https://marvelsnapzone.com to retrieve metadata of Marvel SNAP cards.
