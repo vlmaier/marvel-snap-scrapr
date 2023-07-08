@@ -100,7 +100,7 @@ def create_cards(cards):
             "name": parse_name(card["name"]),
             "cost": card["cost"],
             "power": card["power"],
-            "ability": parse_ability(card["name"], card["ability"]),
+            "ability": parse_ability(card["ability"]),
             "series": parse_source(card["source"]),
             "imageUrl": card["url"],
         }
@@ -125,16 +125,12 @@ def parse_name(name):
     return name_mappings.get(name, name)
 
 
-def parse_ability(name, ability):
+def parse_ability(ability):
     ability = ability.strip()
 
     # Provide 'No ability' instead of empty string.
     if not ability:
         ability = "No ability"
-
-    # The Collector ability manual fix.
-    if name == "The Collector":
-        ability = "When a card enters your hand from anywhere (except your deck), +1 power."
 
     # All following words should be shown in bold.
     bold_candidates = [
