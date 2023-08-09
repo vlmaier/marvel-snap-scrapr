@@ -9,6 +9,19 @@ from datetime import datetime
 
 CARDS_API_URL = "http://localhost:8080/v1/cards"
 MARVELSNAPZONE_URL = 'https://marvelsnapzone.com/cards'
+MARVELSNAPZONE_API_URL = 'https://marvelsnapzone.com/getinfo/?searchtype=cards&searchcardstype=true'
+
+
+def get_cards():
+    print("[%s] %s" % (datetime.now(), "Starting retrieving cards ..."))
+    response = requests.get(MARVELSNAPZONE_API_URL)
+
+    if response.status_code == 200:
+        json_data = response.json()
+        success = json_data.get("success", {})
+        return success.get("cards", [])
+    else:
+        print(f"Error: Request failed with status code {response.status_code}")
 
 
 def scrap():
@@ -44,7 +57,6 @@ def scrap():
         characters.append(character)
         print("[%s] %s" % (datetime.now(), f"Found {character['name']}"))
 
-    # TODO: uncomment to download card images.
     image_urls = [character['url'] for character in characters]
     download_images(image_urls)
 
@@ -83,7 +95,7 @@ def download_image(url, dir_name):
     try:
         response = requests.get(url)
         response.raise_for_status()
-        file_name = url.rsplit('/', 1)[-1]
+        file_name = url.rsplit('/', 1)[-1].rsplit('?', 1)[0]
         file_path = os.path.join(dir_name, file_name)
         with open(file_path, 'wb') as file:
             file.write(response.content)
@@ -194,5 +206,8 @@ def parse_source(source):
 
 
 if __name__ == '__main__':
-    characters = scrap()
+    cards = get_cards()
+    image_urls = [card['art'] for card in cards]
+    download_images(image_urls)
+    # characters = scrap()
     # create_cards(characters)
