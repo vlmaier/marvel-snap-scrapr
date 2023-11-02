@@ -1,213 +1,97 @@
-import re
+from concurrent.futures import ThreadPoolExecutor
 import requests
 import os
-from bs4 import BeautifulSoup
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
-from threading import Thread
 from datetime import datetime
 
-CARDS_API_URL = "http://localhost:8080/v1/cards"
-MARVELSNAPZONE_URL = 'https://marvelsnapzone.com/cards'
-MARVELSNAPZONE_API_URL = 'https://marvelsnapzone.com/getinfo/?searchtype=cards&searchcardstype=true'
+CARDS_API_URL = 'https://marvelsnapzone.com/getinfo/?searchtype=cards&searchcardstype=true'
+LOCATIONS_API_URL = 'https://marvelsnapzone.com/getinfo/?searchtype=locations&searchcardstype=true'
+ROOT_DIR = 'marvel-snap'
+CARDS_DIR = 'cards'
+VARIANTS_DIR = 'variants'
+LOCATIONS_DIR = 'locations'
 
 
-def get_cards():
-    print("[%s] %s" % (datetime.now(), "Starting retrieving cards ..."))
-    response = requests.get(MARVELSNAPZONE_API_URL)
+def get_cards(url: str = CARDS_API_URL):
+    """
+    Retrieves a list of cards from the Marvel SNAP Zone API.
+
+    Returns:
+        A list of cards, where each card is represented as a dictionary.
+    """
+    print("[%s] %s" %
+          (datetime.now(), f"Starting retrieving cards from {url}"))
+    response = requests.get(url)
 
     if response.status_code == 200:
         json_data = response.json()
         success = json_data.get("success", {})
+        print("[%s] %s" % (datetime.now(), "Finished retrieving cards."))
         return success.get("cards", [])
     else:
         print(f"Error: Request failed with status code {response.status_code}")
 
 
-def scrap():
-    print("[%s] %s" % (datetime.now(), "Starting scraping ..."))
+def download_images(urls, dir: str = ROOT_DIR):
+    """
+    Downloads images from the given URLs and stores them in the given directory.
 
-    chrome_options = Options()
-    chrome_options.add_argument("--headless=new")
-    chrome_options.add_argument('--disable-dev-shm-usage')
-    chrome_options.add_argument('--disable-extensions')
-    chrome_options.add_argument('--disable-gpu')
-    browser = webdriver.Chrome(options=chrome_options)
-    browser.get(MARVELSNAPZONE_URL)
-    html = browser.page_source
-    soup = BeautifulSoup(html, 'html.parser')
+    Args:
+        urls: A list of URLs to download images from.
+        dir: The directory to store the images in.
+    """
 
-    # Only look for link with a 'simple-card' class; those are the cards.
-    links = soup.findAll('a', {'class': 'simple-card'})
+    def download_image(url, dir: str = ROOT_DIR):
+        print("[%s] %s" % (datetime.now(), f"Download image from {url}"))
+        try:
+            response = requests.get(url)
+            response.raise_for_status()
+            file_name = url.rsplit('/', 1)[-1].rsplit('?', 1)[0]
+            file_path = os.path.join(dir, file_name)
+            with open(file_path, 'wb') as file:
+                file.write(response.content)
+        except requests.exceptions.RequestException as e:
+            print("[%s] %s" % (datetime.now(),
+                  f"Error downloading image from URL '{url}': {e}"))
 
-    characters = []
-    for link in links:
-        character = {
-            # Capitalize every word.
-            'name': link['data-name'].title(),
-            'cost': link['data-cost'],
-            'power': link['data-power'],
-            # Strip HTML tags and capitalize.
-            'ability': capitalize(BeautifulSoup(link['data-ability'], 'html.parser').text),
-            # Remove query string.
-            'url': link['data-src'].split('?')[0],
-            'status': link['data-status'],
-            'source': link['data-source']
-        }
-        characters.append(character)
-        print("[%s] %s" % (datetime.now(), f"Found {character['name']}"))
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        for url in urls:
+            executor.submit(download_image, url, dir)
 
-    image_urls = [character['url'] for character in characters]
-    download_images(image_urls)
-
-    return characters
+    print("[%s] %s" %
+          (datetime.now(), f"Finished downloading. Check '{dir}' directory."))
 
 
-def capitalize(text):
-    punctuation_filter = re.compile('([.!?;:]\s*)')
-    split_with_punctuation = punctuation_filter.split(text)
-    for i, j in enumerate(split_with_punctuation):
-        if len(j) > 1:
-            split_with_punctuation[i] = j[0].upper() + j[1:]
-    text = ''.join(split_with_punctuation)
-    return text
+def create_directories():
+    """
+    Creates the directories for the card images.
 
+    ROOT_DIR
+    ├── CARDS_DIR
+    ├── LOCATIONS_DIR
+    └── VARIANTS_DIR
 
-def download_images(urls, dir_name='marvel-snap-cards'):
-    if not os.path.exists(dir_name):
-        os.mkdir(dir_name)
-        print("[%s] %s" % (datetime.now(), f"Directory '{dir_name}' created."))
-    else:
-        print("[%s] %s" % (datetime.now(), f"Directory '{dir_name}' already exists."))
+    """
+    if not os.path.exists(ROOT_DIR):
+        os.mkdir(ROOT_DIR)
 
-    threads = []
-    for url in urls:
-        threads.append(Thread(target=download_image, args=(url, dir_name)))
-        threads[-1].start()
-    for thread in threads:
-        thread.join()
+    directories = [CARDS_DIR, VARIANTS_DIR, LOCATIONS_DIR]
 
-    print("[%s] %s" % (datetime.now(), f"Finished downloading. Check '{dir_name}' directory."))
-
-
-def download_image(url, dir_name):
-    print("[%s] %s" % (datetime.now(), f"Download image from {url}"))
-    try:
-        response = requests.get(url)
-        response.raise_for_status()
-        file_name = url.rsplit('/', 1)[-1].rsplit('?', 1)[0]
-        file_path = os.path.join(dir_name, file_name)
-        with open(file_path, 'wb') as file:
-            file.write(response.content)
-    except requests.exceptions.RequestException as e:
-        print("[%s] %s" % (datetime.now(), f"Error downloading image from URL '{url}': {e}"))
-
-
-def create_cards(cards):
-    for card in cards:
-        if card["status"] != "released":
-            continue
-
-        body = {
-            "name": parse_name(card["name"]),
-            "cost": card["cost"],
-            "power": card["power"],
-            "ability": parse_ability(card["ability"]),
-            "series": parse_source(card["source"]),
-            "imageUrl": card["url"],
-        }
-
-        response = requests.post(CARDS_API_URL, json=body)
-        if response.status_code == requests.codes.created:
-            print("[%s] %s" % (datetime.now(), f"Created card: {card['name']}"))
-        else:
-            print("[%s] %s" % (datetime.now(), f"Failed to create card: {card['name']} - {response.text}"))
-
-
-def parse_name(name):
-    name = name.strip()
-
-    name_mappings = {
-        "Ant Man": "Ant-Man",
-        "Jane Foster Mighty Thor": "Jane Foster The Mighty Thor",
-        "Miles Morales": "Miles Morales: Spider-Man",
-        "Super-Skrull": "Super Skrull",
-    }
-
-    return name_mappings.get(name, name)
-
-
-def parse_ability(ability):
-    ability = ability.strip()
-
-    # Provide 'No ability' instead of empty string.
-    if not ability:
-        ability = "No ability"
-
-    # All following words should be shown in bold.
-    bold_candidates = [
-        "On Reveal",
-        "Ongoing",
-        "Widow's Bite",
-        "Rock",
-        "Rocks",
-        "Doombot",
-        "Squirrel",
-        "Demon",
-        "Drone",
-        "Mjolnir",
-        "Tiger",
-        "Limbo",
-        "No ability",
-    ]
-
-    for candidate in bold_candidates:
-        if candidate.lower() in ability.lower():
-            ability = re.sub(
-                candidate.lower(),
-                f"<span class='fw-bold'>{candidate}</span>",
-                ability,
-                flags=re.IGNORECASE,
-            )
-
-    for i in range(1, 10):
-        # +[1-9] should be shown in bold and green color.
-        ability = re.sub(
-            fr"[+][{i}]",
-            f"<span class='fw-bold' style='color: green;'>+{i}</span>",
-            ability,
-        )
-        # -[1-9] should be shown in bold and red color.
-        ability = re.sub(
-            fr"[-][{i}]",
-            f"<span class='fw-bold' style='color: red;'>-{i}</span>",
-            ability,
-        )
-
-    return ability
-
-
-def parse_source(source):
-    series_map = {
-        'Collection Level 1-14': 'Starter',
-        'Starter Card': 'Starter',
-        'Recruit Season': 'Starter',
-        'Pool 1': 'Series 1',
-        'Pool 2': 'Series 2',
-        'Pool 3': 'Series 3',
-        'Pool 4': 'Series 4',
-        'Pool 5': 'Series 5',
-        'Season Pass': 'Season Pass'
-    }
-    for key in series_map:
-        if key in source:
-            return series_map[key]
-    return ''
+    for directory in directories:
+        path = os.path.join(ROOT_DIR, directory)
+        if not os.path.exists(path):
+            os.mkdir(path)
 
 
 if __name__ == '__main__':
     cards = get_cards()
-    image_urls = [card['art'] for card in cards]
-    download_images(image_urls)
-    # characters = scrap()
-    # create_cards(characters)
+    card_image_urls = [card['art'] for card in cards]
+    variant_image_urls = [variant['art'] for card in cards for variant in card.get('variants', [])]
+
+    locations = get_cards(LOCATIONS_API_URL)
+    location_image_urls = [location['art'] for location in locations]
+
+    create_directories()
+
+    download_images(card_image_urls, os.path.join(ROOT_DIR, CARDS_DIR))
+    download_images(variant_image_urls, os.path.join(ROOT_DIR, VARIANTS_DIR))
+    download_images(location_image_urls, os.path.join(ROOT_DIR, LOCATIONS_DIR))

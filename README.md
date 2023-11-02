@@ -1,14 +1,11 @@
-![](https://github.com/vlmaier/marvel-snap-scrapr/actions/workflows/build.yml/badge.svg)
+# ![build](https://github.com/vlmaier/marvel-snap-scrapr/actions/workflows/build.yml/badge.svg)
 
-# Marvel SNAP Scrapr
+## Marvel SNAP Scrapr
 
-Scraper for https://marvelsnapzone.com to retrieve metadata of Marvel SNAP cards.
+Scraper for <https://marvelsnapzone.com> to retrieve metadata of Marvel SNAP cards.
 
-## How does it work?
+### How does it work?
 
-The script uses the Beautiful Soup Python library, which pulls data out of HTML or XML files.
-It scraps the website https://marvelsnapzone.com which is well-structured and provides all required metadata about Marvel SNAP cards.
-Selenium web driver is required because of the dynamic loading on the website. Otherwise, the card links are not available when going for a static approach.
-In the end, a list of dictionaries is created for all available cards. It can be used elsewhere to create a custom card database.
+The origin version used to scrap the website and pull out the card metadata from the HTML page including the image URL.
 
-If you only want to download the images then uncomment the `download_images()` function call.
+The new version uses the [API endpoint](https://marvelsnapzone.com/getinfo/?searchtype=cards&searchcardstype=true) (found by [@mlilback](https://github.com/mlilback)) to retrieve the data in JSON format. The API endpoint is used by the website to retrieve the data as well. Since JSON is already structured data, it is much easier to parse and extract the data.
