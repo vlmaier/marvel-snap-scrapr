@@ -1,8 +1,9 @@
-from concurrent.futures import ThreadPoolExecutor
-import requests
 import os
+import requests
 from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor
 from PIL import Image
+from tqdm import tqdm
 
 CARDS_API_URL = 'https://marvelsnapzone.com/getinfo/?searchtype=cards&searchcardstype=true'
 LOCATIONS_API_URL = 'https://marvelsnapzone.com/getinfo/?searchtype=locations&searchcardstype=true'
@@ -19,16 +20,14 @@ def get_cards(url: str = CARDS_API_URL):
     Returns:
         A list of cards, where each card is represented as a dictionary.
     """
-    print("[%s] %s" %
-          (datetime.now(), f"Starting retrieving cards from {url}"))
-    response = requests.get(url)
-
-    if response.status_code == 200:
+    try:
+        response = requests.get(url)
+        response.raise_for_status()
+        
         json_data = response.json()
         success = json_data.get("success", {})
-        print("[%s] %s" % (datetime.now(), "Finished retrieving cards."))
         return success.get("cards", [])
-    else:
+    except requests.exceptions.RequestException:
         print(f"Error: Request failed with status code {response.status_code}")
 
 
@@ -41,6 +40,8 @@ def download_images(urls, dir: str = ROOT_DIR):
         dir: The directory to store the images in.
     """
 
+    overall_progress = tqdm(total=len(urls), unit=' URL')
+
     def download_image(url, dir: str = ROOT_DIR):
         try:
             file_name = url.rsplit('/', 1)[-1].rsplit('?', 1)[0]
@@ -48,24 +49,23 @@ def download_images(urls, dir: str = ROOT_DIR):
             png_file_path = os.path.splitext(file_path)[0] + ".png"
 
             if os.path.exists(png_file_path):
-                print(
-                    f"File {png_file_path} already exists. Skipping download.")
+                overall_progress.update(1)
                 return
 
             temp_file_path = file_path + ".webp"
             with open(temp_file_path, 'wb') as file:
-                print("[%s] %s" %
-                      (datetime.now(), f"Download image from {url}"))
-                response = requests.get(url)
+                response = requests.get(url, stream=True)
                 response.raise_for_status()
-                file.write(response.content)
+
+                for data in response.iter_content(1024):
+                    file.write(data)
 
             image = Image.open(temp_file_path)
             image.save(png_file_path, "PNG")
+            overall_progress.update(1)
 
-        except requests.exceptions.RequestException as e:
-            print("[%s] %s" % (datetime.now(),
-                  f"Error downloading image from URL '{url}': {e}"))
+        except requests.exceptions.RequestException:
+            overall_progress.update(1)
 
         finally:
             if os.path.exists(temp_file_path):
@@ -74,8 +74,8 @@ def download_images(urls, dir: str = ROOT_DIR):
     with ThreadPoolExecutor(max_workers=5) as executor:
         for url in urls:
             executor.submit(download_image, url, dir)
-        print("[%s] %s" %
-                  (datetime.now(), f"Finished downloading. Check '{dir}' directory."))
+
+    overall_progress.close()
 
 
 def create_directories():
@@ -100,6 +100,8 @@ def create_directories():
 
 
 if __name__ == '__main__':
+    print("[%s] %s" %
+          (datetime.now(), "Start downloading..."))
     cards = get_cards()
     card_image_urls = [card['art'] for card in cards]
     variant_image_urls = [variant['art']
@@ -113,3 +115,6 @@ if __name__ == '__main__':
     download_images(card_image_urls, os.path.join(ROOT_DIR, CARDS_DIR))
     download_images(variant_image_urls, os.path.join(ROOT_DIR, VARIANTS_DIR))
     download_images(location_image_urls, os.path.join(ROOT_DIR, LOCATIONS_DIR))
+
+    print("[%s] %s" %
+          (datetime.now(), f"Finished downloading. Check '{ROOT_DIR}' directory."))
