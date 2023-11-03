@@ -2,6 +2,7 @@ from concurrent.futures import ThreadPoolExecutor
 import requests
 import os
 from datetime import datetime
+from PIL import Image
 
 CARDS_API_URL = 'https://marvelsnapzone.com/getinfo/?searchtype=cards&searchcardstype=true'
 LOCATIONS_API_URL = 'https://marvelsnapzone.com/getinfo/?searchtype=locations&searchcardstype=true'
@@ -41,24 +42,40 @@ def download_images(urls, dir: str = ROOT_DIR):
     """
 
     def download_image(url, dir: str = ROOT_DIR):
-        print("[%s] %s" % (datetime.now(), f"Download image from {url}"))
         try:
-            response = requests.get(url)
-            response.raise_for_status()
             file_name = url.rsplit('/', 1)[-1].rsplit('?', 1)[0]
             file_path = os.path.join(dir, file_name)
-            with open(file_path, 'wb') as file:
+            png_file_path = os.path.splitext(file_path)[0] + ".png"
+
+            if os.path.exists(png_file_path):
+                print(
+                    f"File {png_file_path} already exists. Skipping download.")
+                return
+
+            temp_file_path = file_path + ".webp"
+            with open(temp_file_path, 'wb') as file:
+                print("[%s] %s" %
+                      (datetime.now(), f"Download image from {url}"))
+                response = requests.get(url)
+                response.raise_for_status()
                 file.write(response.content)
+
+            image = Image.open(temp_file_path)
+            image.save(png_file_path, "PNG")
+
         except requests.exceptions.RequestException as e:
             print("[%s] %s" % (datetime.now(),
                   f"Error downloading image from URL '{url}': {e}"))
 
+        finally:
+            if os.path.exists(temp_file_path):
+                os.remove(temp_file_path)
+
     with ThreadPoolExecutor(max_workers=5) as executor:
         for url in urls:
             executor.submit(download_image, url, dir)
-
-    print("[%s] %s" %
-          (datetime.now(), f"Finished downloading. Check '{dir}' directory."))
+        print("[%s] %s" %
+                  (datetime.now(), f"Finished downloading. Check '{dir}' directory."))
 
 
 def create_directories():
@@ -85,7 +102,8 @@ def create_directories():
 if __name__ == '__main__':
     cards = get_cards()
     card_image_urls = [card['art'] for card in cards]
-    variant_image_urls = [variant['art'] for card in cards for variant in card.get('variants', [])]
+    variant_image_urls = [variant['art']
+                          for card in cards for variant in card.get('variants', [])]
 
     locations = get_cards(LOCATIONS_API_URL)
     location_image_urls = [location['art'] for location in locations]

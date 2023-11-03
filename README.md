@@ -1,10 +1,10 @@
-# ![build](https://github.com/vlmaier/marvel-snap-scrapr/actions/workflows/build.yml/badge.svg)
+![build](https://github.com/vlmaier/marvel-snap-scrapr/actions/workflows/build.yml/badge.svg)
 
-## Marvel SNAP Scrapr
+# Marvel SNAP Scrapr
 
 Scraper for <https://marvelsnapzone.com> to retrieve metadata of Marvel SNAP cards.
 
-### How does it work?
+## How does it work?
 
 The origin version used to scrap the website and pull out the card metadata from the HTML page including the image URL.
 
