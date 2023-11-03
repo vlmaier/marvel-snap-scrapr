@@ -1,2 +1,2 @@
 requests==2.31.0
-Pillow==8.2.0
+Pillow==10.1.0
